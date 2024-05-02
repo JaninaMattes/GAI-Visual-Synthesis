@@ -12,15 +12,15 @@ xtrain, xtest, ytrain, ytest = train_test_split(x, y, test_size=0.25, shuffle=Tr
 def task3(x, lr=0.01, num_iterations=1000):
 
     # initialize parameters
-    weights = np.random.normal(0, 1, size=(1, 10, x.shape[1]))
-    bias = np.zeros((1, 10))
+    weights = np.ones((1,10,x.shape[1])) #np.random.normal(0,1,size=(1,10,x.shape[1]))
+    bias = np.zeros((1,10))
 
     # Iterate through number of iterations
     for i in tqdm(range(num_iterations), desc="Training"):
 
         # Calculate logits and probabilities
         logits = weights @ xtrain.T + bias
-        probs = softmax(logits)
+        probs = stable_softmax(logits)
 
         # Calculate the gradient with respect to weights and bias
         grad_weights = xtrain @ (probs - ytrain).T
@@ -32,13 +32,16 @@ def task3(x, lr=0.01, num_iterations=1000):
 
     # Evaluate the model on the test set
     test_logits = weights @ xtest.T + bias
-    test_probs = softmax(test_logits)
+    test_probs = stable_softmax(test_logits)
     test_predictions = np.argmax(test_probs, axis=1)
     test_accuracy = np.mean(test_predictions == ytest)
 
     print("Test accuracy:", test_accuracy)
 
-def softmax(logits):
+def stable_softmax(logits):
+    """ Compute the softmax of vector x in a numerically stable way.
+        Prevent overflow and underflow by subtracting the maximum value from the logits.
+    """
     logits_max = np.max(logits, axis=1, keepdims=True)
     exp_logits = np.exp(logits - logits_max)
     sum_exp_logits = np.sum(exp_logits, axis=1, keepdims=True)
