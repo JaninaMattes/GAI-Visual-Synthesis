@@ -10,6 +10,22 @@ import matplotlib.pyplot as plt
 
 RESULTS_PATH = "./results"
 
+# utility functions
+def standard_normalization(x):
+    return (x - x.mean()) / x.std()
+
+def moving_average(x, w):
+    return np.convolve(x, np.ones(w), 'valid') / w
+
+def normaldist_init(input_size, output_size):
+    # Normal distribution initialization
+    return torch.randn(input_size, output_size)
+    
+def xavier_init(input_size, output_size):
+    # Xavier initialization
+    return torch.randn(input_size, output_size) * np.sqrt(2.0/(input_size + output_size))
+
+
 #define single layers
 class Linear:
     def __init__(self, in_channels, out_channels):
@@ -17,9 +33,13 @@ class Linear:
         self.out_channels = out_channels
         
         # initialize weights with standard normal distribution and bias with zeros
-        self.weight = torch.randn(self.in_channels, self.out_channels)
+        self.weight = normaldist_init(self.in_channels, self.out_channels)
+        
+        # Xavier initialization
+        self.weight = xavier_init(self.in_channels, self.out_channels)
         self.bias = torch.zeros(self.out_channels)
         
+        # store last input for backpropagation
         self.last_input = None
         self.grad_weight = None
         self.grad_bias = None
@@ -27,6 +47,12 @@ class Linear:
     def forward(self, x, remember=False):
         if remember:
             self.last_input = x
+
+        # reshape input to 2D tensor
+        if len(x.shape) > 2:
+            x = x.view(x.size(0), -1)
+
+        # calculate linear transformation
         newx = torch.matmul(x, self.weight) + self.bias
         return newx
     
@@ -34,17 +60,21 @@ class Linear:
         # calculate gradients
         self.grad_weight = torch.matmul(self.last_input.t(), gradient)
         self.grad_bias = torch.sum(gradient, dim=0)
+        
+        # reshape gradient to original input shape
+        if len(self.last_input.shape) > 2:
+            gradient = gradient.view(*self.last_input.shape)
 
         # calculate gradient for previous layer
         newgrad = torch.matmul(gradient, self.weight.t())
-        
+
         return newgrad
+
     
     def update(self, learning_rate):
         # update weights and bias
         self.weight -= learning_rate * self.grad_weight
         self.bias -= learning_rate * self.grad_bias
-        
         
 class ReLU:
     def __init__(self):
@@ -53,6 +83,7 @@ class ReLU:
     def forward(self, x, remember=False):
         if remember:
             self.last_input = x
+        
         # ReLU activation
         newx = torch.max(x, torch.zeros_like(x))
         return newx
@@ -153,80 +184,109 @@ class MLP:
 ############################################# no need to change anything above this line #############################################  
 
 
-#training
+#training function
 
-#create datasets
-Ntrain = 8000
-Ntest = 2000
-Xtrain, ytrain = make_moons(n_samples=Ntrain, noise=0.08, random_state=42)
-Xtest, ytest = make_moons(n_samples=Ntest, noise=0.08, random_state=42)
+def train_network(mlp, Ntrain, Ntest, Xtrain, ytrain, Xtest, ytest, num_epochs=10, batch_size=32, learning_rate=5e-3):
+    num_batches_train = int(np.ceil(Ntrain/batch_size))
+    num_batches_test = int(np.ceil(Ntest/batch_size))
 
-#rescale data to [-1,1]
-amin = np.amin(Xtrain, axis=0, keepdims=True)
-amax = np.amax(Xtrain, axis=0, keepdims=True)
+    #train network
+    losses_train = []
+    losses_test = []
 
-Xtrain = ((Xtrain-amin)/(amax-amin)-0.5)/0.5
-Xtest = ((Xtest-amin)/(amax-amin)-0.5)/0.5
+    for epoch in range(num_epochs):
+        #reshuffle training data
+        ind = np.random.permutation(len(Xtrain))
+        Xtrain = Xtrain[ind]
+        ytrain = ytrain[ind]
 
+        epoch_train_loss = 0.0
+        epoch_test_loss = 0.0
 
-batch_size = 32
-num_batches_train = int(np.ceil(Ntrain/batch_size))
-num_batches_test = int(np.ceil(Ntest/batch_size))
+        #training pass
+        for it in tqdm(range(num_batches_train)):
+            start = it*batch_size
+            end = min((it+1)*batch_size, len(Xtrain))
+            X = torch.FloatTensor(Xtrain[start:end])
+            y = torch.LongTensor(ytrain[start:end])
 
-num_epochs = 10
+            # compute loss and update weights
+            loss = mlp.training_step(X, y, learning_rate)
+            epoch_train_loss += loss.item()
 
-mlp = MLP(2, [30,30], 2)
-learning_rate = 5e-2
+            # update weights
+            mlp.update(learning_rate)
 
+            if it%10==0:
+                print(f"Epoch {epoch+1}/{num_epochs}, Iteration {it+1}/{num_batches_train}, Train Loss: {loss.item()}")
 
-#train network
-losses_train = []
-losses_test = []
+        #testing pass
+        for it in range(num_batches_test):
+            start = it*batch_size
+            end = min((it+1)*batch_size, len(Xtest))
+            X = torch.FloatTensor(Xtest[start:end])
+            y = torch.LongTensor(ytest[start:end])
 
-for epoch in range(num_epochs):
-    #reshuffle training data
-    ind = np.random.permutation(len(Xtrain))
-    Xtrain = Xtrain[ind]
-    ytrain = ytrain[ind]
-    #training pass
-    for it in tqdm(range(num_batches_train)):
-        start = it*batch_size
-        end = min((it+1)*batch_size, len(Xtrain))
-        X = torch.FloatTensor(Xtrain[start:end])
-        y = torch.LongTensor(ytrain[start:end])
-        
-        # compute loss and update weights
-        loss = mlp.training_step(X, y, learning_rate)
-        losses_train.append(loss.item())
+            # compute loss
+            probabilities = mlp.forward(X)
+            loss = mlp.criterion.forward(probabilities, y)
+            epoch_test_loss += loss.item()
 
-        # update weights
-        mlp.update(learning_rate)
+            if it%10==0:
+                print(f"Epoch {epoch+1}/{num_epochs}, Iteration {it+1}/{num_batches_test}, Test Loss: {loss.item()}")
 
-    
-    #testing pass
-    for it in range(num_batches_test):
-        start = it*batch_size
-        end = min((it+1)*batch_size, len(Xtest))
-        X = torch.FloatTensor(Xtest[start:end])
-        y = torch.LongTensor(ytest[start:end])
-        
-        # compute loss
-        probabilities = mlp.forward(X)
-        loss = mlp.criterion.forward(probabilities, y)
+        # append average loss for this epoch
+        losses_train.append(epoch_train_loss / num_batches_train)
+        losses_test.append(epoch_test_loss / num_batches_test)
 
-        losses_test.append(loss.item())
+    return losses_train, losses_test
 
-#plot losses
-plt.figure()
-plt.plot(losses_train, label="train")
-plt.plot(losses_test, label="test")
-plt.legend()
-plt.show()
-# store plot in results folder
-# check if folder exists, if not create it
-if not os.path.exists(RESULTS_PATH):
-    os.makedirs(RESULTS_PATH)
+def task1(batch_size=32, num_epochs=10, learning_rate=3e-2, hidden_channels=[30,30]):
 
-plt.savefig(f"{RESULTS_PATH}/losses.png")
+    # generate data
+    Ntrain = 8000
+    Ntest = 2000
+    Xtrain, ytrain = make_moons(n_samples=Ntrain, noise=0.08, random_state=42)
+    Xtest, ytest = make_moons(n_samples=Ntest, noise=0.08, random_state=42)
 
+    # rescale data to [-1,1]
+    amin = np.amin(Xtrain, axis=0, keepdims=True)
+    amax = np.amax(Xtrain, axis=0, keepdims=True)
 
+    Xtrain = ((Xtrain-amin)/(amax-amin)-0.5)/0.5
+    Xtest = ((Xtest-amin)/(amax-amin)-0.5)/0.5
+
+    mlp = MLP(2, hidden_channels, 2)
+
+    losses_train = []
+    losses_test = []
+
+    # train network
+    losses_train, losses_test = train_network(mlp, Ntrain, Ntest, Xtrain, ytrain, Xtest, ytest, num_epochs=num_epochs, batch_size=batch_size, learning_rate=learning_rate)
+
+    # plot loss curves
+    plt.figure()
+    plt.plot(moving_average(losses_train, 10), label="Train Loss")
+    plt.plot(moving_average(losses_test, 10), label="Test Loss")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.legend()
+    plt.savefig(os.path.join(RESULTS_PATH, "loss_curve.png"))
+    plt.show()
+
+    print("Task completed")
+
+# STARTING POINT
+if __name__ == "__main__":
+    # create results folder if it does not exist
+    if not os.path.exists(RESULTS_PATH):
+        os.makedirs(RESULTS_PATH)
+
+    batch_size = 32
+    num_epochs = 10
+    learning_rate = 3e-2
+
+    # create MLP
+    hidden_channels = [30,30]
+
+    task1(batch_size=batch_size, num_epochs=num_epochs, learning_rate=learning_rate, hidden_channels=hidden_channels)
