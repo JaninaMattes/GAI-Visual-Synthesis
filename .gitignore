@@ -162,4 +162,4 @@ cython_debug/
 # other
 .DS_Store
 data/*
-
+*.tar.gz
