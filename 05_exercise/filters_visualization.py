@@ -32,7 +32,7 @@ def visualise_layer_filter(model, layer_nmbr, filter_nmbr, num_optim_steps=26, l
     processed_image = torch.tensor(processed_image, device=device).float()
     processed_image.requires_grad = True
     # Define optimizer for the image
-    optimizer = get_optimizer(optimizer_type, processed_image, lr)
+    optimizer = get_optimizer(optimizer_type, processed_image, lr=lr)
     for i in range(1, num_optim_steps):
         optimizer.zero_grad()
         # Assign create image to a variable to move forward in the model
@@ -63,7 +63,7 @@ def visualise_layer_filter(model, layer_nmbr, filter_nmbr, num_optim_steps=26, l
 
     return optimized_image
 
-def get_optimizer(optimizer_type, input_img, lr, weight_decay=0):
+def get_optimizer(optimizer_type, input_img, lr=0.1, weight_decay=0.0):
     """
     Get optimizer for the input image.
 
@@ -86,14 +86,12 @@ def get_optimizer(optimizer_type, input_img, lr, weight_decay=0):
         'adagrad': (torch.optim.Adagrad, 1e-5),
         'adadelta': (torch.optim.Adadelta, 1e-5),
         'adamax': (torch.optim.Adamax, 1e-5),
-        'adamw': (torch.optim.AdamW, 1e-4),
-        'lbfgs': (torch.optim.LBFGS, 1e-6),
+        'adamw': (torch.optim.AdamW, 1e-4)
     }
 
     # Check if the selected optimizer is valid
     if optimizer_type not in optimizer_configs:
-        print(f'options: {optimizer_type}')
-        raise ValueError('Please select a valid optimizer type: ' + ', '.join(optimizer_configs.keys()))
+        raise ValueError('[Info] Please select a valid optimizer type: ' + ', '.join(optimizer_configs.keys()))
 
     # Get the optimizer class and default weight decay value for the selected optimizer
     optimizer_class, default_weight_decay = optimizer_configs[optimizer_type]
