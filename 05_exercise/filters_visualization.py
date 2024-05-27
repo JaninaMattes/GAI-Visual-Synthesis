@@ -77,6 +77,8 @@ def get_optimizer(optimizer_type, input_img, lr):
         optimizer = torch.optim.Adagrad([input_img], lr=lr, weight_decay=1e-5)
     elif optimizer_type == 'adadelta':
         optimizer = torch.optim.Adadelta([input_img], lr=lr, weight_decay=1e-5)
+    elif optimizer_type == 'lbfgs':
+        optimizer = torch.optim.LBFGS([input_img], lr=lr, weight_decay=1e-5)
     else:
         raise ValueError('Please select a valid optimizer type: adam, sgd, lbfgs, adagrad, adadelta')
     return optimizer
