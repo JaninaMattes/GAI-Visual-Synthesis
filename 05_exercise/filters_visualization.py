@@ -63,25 +63,46 @@ def visualise_layer_filter(model, layer_nmbr, filter_nmbr, num_optim_steps=26, l
 
     return optimized_image
 
-def get_optimizer(optimizer_type, input_img, lr):
-    """ Get optimizer for the input image"""
+def get_optimizer(optimizer_type, input_img, lr, weight_decay=0):
+    """
+    Get optimizer for the input image.
 
-    # Select optimizer
-    if optimizer_type == 'adam':
-        optimizer = Adam([input_img], lr=lr, weight_decay=1e-5)
-    elif optimizer_type == 'sgd':
-        optimizer = torch.optim.SGD([input_img], lr=lr, weight_decay=1e-6)
-    elif optimizer_type == 'rmsprop':
-        optimizer = torch.optim.RMSprop([input_img], lr=lr, weight_decay=1e-5)
-    elif optimizer_type == 'adagrad':
-        optimizer = torch.optim.Adagrad([input_img], lr=lr, weight_decay=1e-5)
-    elif optimizer_type == 'adadelta':
-        optimizer = torch.optim.Adadelta([input_img], lr=lr, weight_decay=1e-5)
-    elif optimizer_type == 'lbfgs':
-        optimizer = torch.optim.LBFGS([input_img], lr=lr, weight_decay=1e-5)
-    else:
-        raise ValueError('Please select a valid optimizer type: adam, sgd, lbfgs, adagrad, adadelta')
+    Args:
+    - optimizer_type (str): The type of optimizer to use. Must be one of 'adam', 'sgd', 'rmsprop', 'adagrad', 'adadelta', or 'adamax'.
+    - input_img (torch.Tensor): The input image tensor to optimize.
+    - lr (float): The learning rate for the optimizer.
+    - weight_decay (float, optional): The weight decay (L2 penalty) for the optimizer. Defaults to 0.
+
+    Returns:
+    - optimizer (torch.optim.Optimizer): The selected optimizer instance.
+    """
+
+    # Define a mapping of optimizer names to their corresponding classes and default weight decay values
+    optimizer_configs = {
+        'adam': (torch.optim.Adam, 1e-5),
+        'sgd': (torch.optim.SGD, 1e-6),
+        'asgd': (torch.optim.ASGD, 1e-6), 
+        'rmsprop': (torch.optim.RMSprop, 1e-5),
+        'adagrad': (torch.optim.Adagrad, 1e-5),
+        'adadelta': (torch.optim.Adadelta, 1e-5),
+        'adamax': (torch.optim.Adamax, 1e-5),
+        'adamw': (torch.optim.AdamW, 1e-4),
+        'lbfgs': (torch.optim.LBFGS, 1e-6),
+    }
+
+    # Check if the selected optimizer is valid
+    if optimizer_type not in optimizer_configs:
+        print(f'options: {optimizer_type}')
+        raise ValueError('Please select a valid optimizer type: ' + ', '.join(optimizer_configs.keys()))
+
+    # Get the optimizer class and default weight decay value for the selected optimizer
+    optimizer_class, default_weight_decay = optimizer_configs[optimizer_type]
+
+    # Create an instance of the selected optimizer with the correct weight decay value
+    optimizer = optimizer_class([input_img], lr=lr, weight_decay=default_weight_decay if weight_decay == 0 else weight_decay)
+
     return optimizer
+
 
 
 if __name__ == '__main__':
