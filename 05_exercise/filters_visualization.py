@@ -17,10 +17,10 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # Total Variation Loss
 def total_variation_loss(img, weight):
-     # Your code here
-    pass
+    # Calculate total variation loss
+    return weight * (torch.sum(torch.abs(img[:, :, :, :-1] - img[:, :, :, 1:])) + torch.sum(torch.abs(img[:, :, :-1, :] - img[:, :, 1:, :])))
 
-def visualise_layer_filter(model, layer_nmbr, filter_nmbr, num_optim_steps=26, lr=0.1, optimizer_type='adam', rand_img=None):
+def visualise_layer_filter(model, layer_nmbr, filter_nmbr, num_optim_steps=26, lr=0.1, optimizer_type='adam', rand_img=None, total_var_loss=False):
 
     # Generate a random image
     if rand_img is None:
@@ -49,12 +49,18 @@ def visualise_layer_filter(model, layer_nmbr, filter_nmbr, num_optim_steps=26, l
         conv_output = x[0, filter_nmbr]
         # Loss function is the mean of the output of the selected layer/filter
         # We try to minimize the mean of the output of that specific filter
-        loss = -torch.mean(conv_output)
-        # You may need to add total variation loss later
-        # loss_tv = total_variation_loss(processed_image, 500.)
-        # loss = -torch.mean(conv_output) + loss_tv*1.
 
-        # print(f'Step {i:05d}. Loss:{loss.data.cpu().numpy():0.2f}')
+        if total_var_loss:
+            # Add total variation loss later
+            loss_tv = total_variation_loss(processed_image, 500.)
+            loss = -torch.mean(conv_output) + (loss_tv*1.)
+        
+        else:
+            # Mean of the output of the selected layer/filter
+            loss = -torch.mean(conv_output)
+
+        if i % 10 == 0:
+            print(f'Step {i:05d}. Loss:{loss.data.cpu().numpy():0.2f}')
         
         # Compute gradients
         loss.backward()

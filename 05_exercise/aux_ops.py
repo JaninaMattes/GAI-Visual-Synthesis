@@ -75,7 +75,6 @@ def preprocess_image(pil_im, resize_im=True):
     # if tensor transform to PIL image
     if isinstance(pil_im, torch.Tensor):
         pil_im = pil_im.cpu().detach()
-        print(f"pil_im shape: {pil_im.shape}")
 
     # Resize image
     if resize_im:
