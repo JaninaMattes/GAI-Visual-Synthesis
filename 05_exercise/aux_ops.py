@@ -72,17 +72,24 @@ def preprocess_image(pil_im, resize_im=True):
         except Exception as e:
             print("could not transform PIL_img to a PIL Image object. Please check input.")
 
+    # if tensor transform to PIL image
+    if isinstance(pil_im, torch.Tensor):
+        pil_im = pil_im.cpu().detach()
+        print(f"pil_im shape: {pil_im.shape}")
+
     # Resize image
     if resize_im:
         pil_im = pil_im.resize((224, 224), Image.LANCZOS)
 
     im_as_arr = np.float32(pil_im)
     im_as_arr = im_as_arr.transpose(2, 0, 1)  # Convert array to D,W,H
+    
     # Normalize the channels
     for channel, _ in enumerate(im_as_arr):
         im_as_arr[channel] /= 255
         im_as_arr[channel] -= mean[channel]
         im_as_arr[channel] /= std[channel]
+    
     # Convert to float tensor
     im_as_ten = torch.from_numpy(im_as_arr).float()
     # Add one more channel to the beginning. Tensor shape = 1,3,224,224

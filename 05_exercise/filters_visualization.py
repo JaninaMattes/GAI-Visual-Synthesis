@@ -20,12 +20,13 @@ def total_variation_loss(img, weight):
      # Your code here
     pass
 
-def visualise_layer_filter(model, layer_nmbr, filter_nmbr, num_optim_steps=26, lr=0.1, optimizer_type='adam'):
+def visualise_layer_filter(model, layer_nmbr, filter_nmbr, num_optim_steps=26, lr=0.1, optimizer_type='adam', rand_img=None):
 
     # Generate a random image
-    rand_img = np.uint8(np.random.uniform(low=120,
-                                          high=190,
-                                          size=(224, 224, 3)))
+    if rand_img is None:
+        rand_img = np.uint8(np.random.uniform(low=120,
+                                            high=190,
+                                            size=(224, 224, 3)))
 
     # Process image and return variable
     processed_image = preprocess_image(rand_img, False)
@@ -54,6 +55,7 @@ def visualise_layer_filter(model, layer_nmbr, filter_nmbr, num_optim_steps=26, l
         # loss = -torch.mean(conv_output) + loss_tv*1.
 
         # print(f'Step {i:05d}. Loss:{loss.data.cpu().numpy():0.2f}')
+        
         # Compute gradients
         loss.backward()
         # Apply gradients
@@ -86,7 +88,8 @@ def get_optimizer(optimizer_type, input_img, lr=0.1, weight_decay=0.0):
         'adagrad': (torch.optim.Adagrad, 1e-5),
         'adadelta': (torch.optim.Adadelta, 1e-5),
         'adamax': (torch.optim.Adamax, 1e-5),
-        'adamw': (torch.optim.AdamW, 1e-4)
+        'adamw': (torch.optim.AdamW, 1e-4),
+        'sparseadam': (torch.optim.SparseAdam, 1e-5),
     }
 
     # Check if the selected optimizer is valid
