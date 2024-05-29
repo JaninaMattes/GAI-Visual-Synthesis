@@ -59,7 +59,7 @@ def visualise_layer_filter(model, layer_nmbr, filter_nmbr, num_optim_steps=26, l
             # Mean of the output of the selected layer/filter
             loss = -torch.mean(conv_output)
 
-        if i % 10 == 0:
+        if i % 20 == 0:
             print(f'Step {i:05d}. Loss:{loss.data.cpu().numpy():0.2f}')
         
         # Compute gradients
