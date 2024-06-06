@@ -50,12 +50,13 @@ class Encoder(nn.Module):
         x = x.view(x.size(0), -1)
         x = self.encoder(x)
         return x
-
+    
 class Decoder(nn.Module):
     """Decoder network for the Autoencoder"""
 
     def __init__(self, input_shape=(28, 28)):
         super(Decoder, self).__init__()
+        self.input_shape = input_shape
         self.decoder = nn.Sequential(
             nn.Linear(8, 16),
             nn.LeakyReLU(0.1),
@@ -71,7 +72,7 @@ class Decoder(nn.Module):
 
     def forward(self, x):
         x = self.decoder(x)
-        x = x.view(x.size(0), 28, 28)
+        x = x.view(x.size(0), 1, self.input_shape[0], self.input_shape[1])
         return x
 
 
