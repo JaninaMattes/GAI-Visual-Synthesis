@@ -44,7 +44,7 @@ class Encoder(nn.Module):
             nn.Linear(32, 16),
             nn.LeakyReLU(0.1),
             nn.Linear(16, 8),
-            nn.ReLU()
+            nn.LeakyReLU(0.1)
         )
 
     def forward(self, x):
