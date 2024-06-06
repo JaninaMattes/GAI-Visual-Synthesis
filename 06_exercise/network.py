@@ -1,5 +1,6 @@
+import torch 
 import torch.nn as nn
-
+import torch.nn.functional as F
 
 def to_img(x):
     """ Maps a 2D tensor from range [-1, 1] to 4D tensor with range [0, 1].
@@ -35,13 +36,13 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
         self.encoder = nn.Sequential(
             nn.Linear(input_shape[0] * input_shape[1], 128),
-            nn.ReLU(),
+            nn.ReLU(True),
             nn.Linear(128, 64),
-            nn.ReLU(),
+            nn.ReLU(True),
             nn.Linear(64, 32),
-            nn.ReLU(),
+            nn.ReLU(True),
             nn.Linear(32, 16),
-            nn.ReLU(),
+            nn.ReLU(True),
             nn.Linear(16, 8),
             nn.ReLU()
         )
@@ -59,13 +60,13 @@ class Decoder(nn.Module):
         self.input_shape = input_shape
         self.decoder = nn.Sequential(
             nn.Linear(8, 32),
-            nn.ReLU(),
+            nn.ReLU(True),
             nn.Linear(32, 64),
-            nn.ReLU(),
+            nn.ReLU(True),
             nn.Linear(64, 128),
-            nn.ReLU(),
+            nn.ReLU(True),
             nn.Linear(128, 784),
-            nn.ReLU(),
+            nn.ReLU(True),
             nn.Linear(784, input_shape[0] * input_shape[1]),
             nn.Tanh()
         )
@@ -149,14 +150,14 @@ class VanillaVAEEncoder(nn.Module):
     def __init__(self):
         super(VanillaVAEEncoder, self).__init__()
         self.encoder = nn.Sequential(
-            nn.Conv2d(1, 32, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(32),
+            nn.Conv2d(1, 4, kernel_size=5),
+            nn.BatchNorm2d(4),
             nn.LeakyReLU(0.1),
-            nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
-            nn.BatchNorm2d(64),
+            nn.Conv2d(4, 8, kernel_size=5),
+            nn.BatchNorm2d(8),
             nn.LeakyReLU(0.1),
             nn.Flatten(),
-            nn.Linear(3136, 10),
+            nn.Linear(3200, 10),
             nn.Softmax(dim=1)
         )
 
@@ -176,6 +177,7 @@ class VanillaVAEDecoder(nn.Module):
             nn.LeakyReLU(0.1),
             nn.Unflatten(1, (10, 20, 20)),
             nn.ConvTranspose2d(10, 10, kernel_size=5),
+            nn.BatchNorm2d(10),
             nn.LeakyReLU(0.1),
             nn.ConvTranspose2d(10, 1, kernel_size=5),
             nn.Tanh()
@@ -196,8 +198,8 @@ class VanillaVAE(nn.Module):
         # 1. Encoder
         self.encoder = VanillaVAEEncoder()
         # latent mean and variance
-        self.fc_mean = nn.Linear(latent_dim, 2)
-        self.fc_logvar = nn.Linear(latent_dim, 2)
+        self.fc_mean = nn.Linear(10, latent_dim)
+        self.fc_logvar = nn.Linear(10, latent_dim)
         # 2. Decoder
         self.decoder = VanillaVAEDecoder()
 
@@ -205,12 +207,23 @@ class VanillaVAE(nn.Module):
         std = logvar.mul(0.5).exp_()
         eps = std.data.new(std.size()).normal_()
         return eps.mul(std).add_(mean)
+    
+    def loss_function(self, recon_x, input, mean, logvar):
+        # reconstruction loss
+        BCE = F.mse_loss(recon_x, input, size_average=False)
+        # KL divergence loss
+        KLD = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
+        return BCE + KLD
 
     def forward(self, x):
-        x = x.view(x.size(0), -1)
-        z = self.encoder(x)
+        x = x.view(x.size(0), 1, self.input_shape[0], self.input_shape[1])
+        z = self.encoder(x) 
+
+        # encodes the input into the latent space code
+        # -- split the tensor into mu and logvar
         mean = self.fc_mean(z)
         logvar = self.fc_logvar(z)
         z = self.reparameterize(mean, logvar)
         x = self.decoder(z)
+        x = x.view(-1, 1, self.input_shape[0], self.input_shape[1])
         return x, mean, logvar
