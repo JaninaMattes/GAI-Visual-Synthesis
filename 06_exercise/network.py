@@ -36,13 +36,13 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
         self.encoder = nn.Sequential(
             nn.Linear(input_shape[0] * input_shape[1], 128),
-            nn.ReLU(True),
+            nn.LeakyReLU(0.1), # selected Leaky ReLU activation function
             nn.Linear(128, 64),
-            nn.ReLU(True),
+            nn.LeakyReLU(0.1),
             nn.Linear(64, 32),
-            nn.ReLU(True),
+            nn.LeakyReLU(0.1),
             nn.Linear(32, 16),
-            nn.ReLU(True),
+            nn.LeakyReLU(0.1),
             nn.Linear(16, 8),
             nn.ReLU()
         )
@@ -60,13 +60,13 @@ class Decoder(nn.Module):
         self.input_shape = input_shape
         self.decoder = nn.Sequential(
             nn.Linear(8, 32),
-            nn.ReLU(True),
+            nn.LeakyReLU(0.1),
             nn.Linear(32, 64),
-            nn.ReLU(True),
+            nn.LeakyReLU(0.1),
             nn.Linear(64, 128),
-            nn.ReLU(True),
+            nn.LeakyReLU(0.1),
             nn.Linear(128, 784),
-            nn.ReLU(True),
+            nn.LeakyReLU(0.1),
             nn.Linear(784, input_shape[0] * input_shape[1]),
             nn.Tanh()
         )
@@ -97,8 +97,10 @@ class ConvEncoder(nn.Module):
         self.encoder = nn.Sequential(
             nn.Conv2d(1, 4, kernel_size=5),
             nn.LeakyReLU(0.1),
+            nn.BatchNorm2d(4), # added batch normalization
             nn.Conv2d(4, 8, kernel_size=5),
             nn.LeakyReLU(0.1),
+            nn.BatchNorm2d(8),
             nn.Flatten(),
             nn.Linear(3200, 10),
             nn.Softmax(dim=1)
@@ -120,6 +122,7 @@ class ConvDecoder(nn.Module):
             nn.LeakyReLU(0.1),
             nn.Unflatten(1, (10, 20, 20)),
             nn.ConvTranspose2d(10, 10, kernel_size=5),
+            nn.BatchNorm2d(10),
             nn.LeakyReLU(0.1),
             nn.ConvTranspose2d(10, 1, kernel_size=5),
             nn.Tanh()
