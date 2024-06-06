@@ -35,22 +35,22 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
         self.encoder = nn.Sequential(
             nn.Linear(input_shape[0] * input_shape[1], 128),
-            nn.LeakyReLU(0.1), # selected LeakyReLU as activation function
+            nn.ReLU(),
             nn.Linear(128, 64),
-            nn.LeakyReLU(0.1),
+            nn.ReLU(),
             nn.Linear(64, 32),
-            nn.LeakyReLU(0.1),
+            nn.ReLU(),
             nn.Linear(32, 16),
-            nn.LeakyReLU(0.1),
+            nn.ReLU(),
             nn.Linear(16, 8),
-            nn.LeakyReLU(True)
+            nn.ReLU()
         )
 
     def forward(self, x):
         x = x.view(x.size(0), -1)
         x = self.encoder(x)
         return x
-    
+
 class Decoder(nn.Module):
     """Decoder network for the Autoencoder"""
 
@@ -58,15 +58,15 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.input_shape = input_shape
         self.decoder = nn.Sequential(
-            nn.Linear(8, 16),
-            nn.LeakyReLU(0.1),
-            nn.Linear(16, 32),
-            nn.LeakyReLU(0.1),
+            nn.Linear(8, 32),
+            nn.ReLU(),
             nn.Linear(32, 64),
-            nn.LeakyReLU(0.1),
+            nn.ReLU(),
             nn.Linear(64, 128),
-            nn.LeakyReLU(0.1),
+            nn.ReLU(),
             nn.Linear(128, 784),
+            nn.ReLU(),
+            nn.Linear(784, input_shape[0] * input_shape[1]),
             nn.Tanh()
         )
 
@@ -74,7 +74,6 @@ class Decoder(nn.Module):
         x = self.decoder(x)
         x = x.view(x.size(0), 1, self.input_shape[0], self.input_shape[1])
         return x
-
 
 class Autoencoder(nn.Module):
     """ Autoencoder network"""
@@ -132,16 +131,17 @@ class ConvDecoder(nn.Module):
 class ConvAutoencoder(nn.Module):
     """ Convolutional Autoencoder network"""
 
-    def __init__(self):
+    def __init__(self, input_shape=(28, 28)):
         super(ConvAutoencoder, self).__init__()
+        self.input_shape = input_shape
         self.encoder = ConvEncoder()
         self.decoder = ConvDecoder()
 
     def forward(self, x):
-        x = x.view(-1, 1, 28, 28)
+        x = x.view(x.size(0), 1, self.input_shape[0], self.input_shape[1])
         z = self.encoder(x)
         x = self.decoder(z)
-        return x.view(-1, 1, 28, 28)
+        return x.view(-1, 1, self.input_shape[0], self.input_shape[1])
     
 
 class VanillaVAEEncoder(nn.Module):
