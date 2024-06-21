@@ -161,5 +161,7 @@ cython_debug/
 
 # other
 .DS_Store
-data/*
+*/data/**
+!*/data/.gitkeep
 *.tar.gz
+*.zip
