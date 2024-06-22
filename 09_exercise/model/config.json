@@ -1,1 +1,1 @@
-{"input_length": 13, "input_dim": 1, "num_classes": 10, "num_hidden": 128, "batch_size": 128, "learning_rate": 0.001, "train_steps": 10000, "test_steps": 1000, "max_norm": 10.0}
+{"input_length": 16, "input_dim": 1, "num_classes": 10, "num_hidden": 128, "batch_size": 128, "learning_rate": 0.001, "train_steps": 5000, "test_steps": 100, "max_norm": 10.0}
