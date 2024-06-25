@@ -9,8 +9,6 @@
 # to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 # copies of the Software, and to permit persons to whom the Software is
 # furnished to do so, subject to conditions.
-#
-
 
 ################################################################################
 
@@ -44,33 +42,61 @@ def train(config):
     device = torch.device(config.device)
 
     # Initialize the model that we are going to use
-    model = None  # fixme
+    if config.model_type == "RNN":
+        model = VanillaRNN(
+            config.input_length,
+            config.input_dim,
+            config.num_hidden,
+            config.num_classes,
+            config.batch_size,
+        )
+    else:
+        model = LSTM(
+            config.input_length,
+            config.input_dim,
+            config.num_hidden,
+            config.num_classes,
+            config.batch_size,
+        )
+    model.to(device)
 
     # Initialize the dataset and data loader (note the +1)
     dataset = PalindromeDataset(config.input_length + 1)
     data_loader = DataLoader(dataset, config.batch_size, num_workers=1)
 
     # Setup the loss and optimizer
-    criterion = None  # fixme
-    optimizer = None  # fixme
+    criterion = torch.nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr=config.learning_rate)
 
     for step, (batch_inputs, batch_targets) in enumerate(data_loader):
 
         # Only for time measurement of step through network
         t1 = time.time()
 
-        # Add more code here ...
+        # Move inputs and targets to the device
+        batch_inputs, batch_targets = batch_inputs.to(device), batch_targets.to(device)
 
-        ############################################################################
-        # QUESTION: what happens here and why?
-        ############################################################################
+        # Zero the gradients
+        optimizer.zero_grad()
+
+        # Forward pass
+        outputs = model(batch_inputs)
+
+        # Compute loss
+        loss = criterion(outputs, batch_targets)
+
+        # Backward pass
+        loss.backward()
+
+        # Clip the gradients
         torch.nn.utils.clip_grad_norm(model.parameters(), max_norm=config.max_norm)
-        ############################################################################
 
-        # Add more code here ...
+        # Update the parameters
+        optimizer.step()
 
-        loss = np.inf  # fixme
-        accuracy = 0.0  # fixme
+        # Compute accuracy
+        _, predicted = torch.max(outputs.data, 1)
+        accuracy = (predicted == batch_targets).sum().item() / config.batch_size
 
         # Just for time measurement
         t2 = time.time()
@@ -87,7 +113,7 @@ def train(config):
                     config.batch_size,
                     examples_per_second,
                     accuracy,
-                    loss,
+                    loss.item(),
                 )
             )
 
@@ -97,7 +123,6 @@ def train(config):
             break
 
     print("Done training.")
-
 
 ################################################################################
 ################################################################################
