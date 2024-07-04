@@ -19,7 +19,7 @@ def moving_average(x, w):
 
 def normaldist_init(input_size, output_size):
     # Normal distribution initialization
-    return torch.randn(input_size, output_size)
+    return torch.randn(1, output_size, input_size)/(input_size + 1)
     
 def xavier_init(input_size, output_size):
     # Xavier initialization
@@ -28,16 +28,20 @@ def xavier_init(input_size, output_size):
 
 #define single layers
 class Linear:
-    def __init__(self, in_channels, out_channels):
+    def __init__(self, in_channels, out_channels, init="normal"):
         self.in_channels = in_channels
         self.out_channels = out_channels
         
-        # initialize weights with standard normal distribution and bias with zeros
-        self.weight = normaldist_init(self.in_channels, self.out_channels)
+        if init == "normal":
+            # initialize weights with standard normal distribution and bias with zeros
+            self.weight = normaldist_init(self.in_channels, self.out_channels)
+        elif init == "xavier":
+            # Xavier initialization
+            self.weight = xavier_init(self.in_channels, self.out_channels)  
+        else:
+            raise ValueError("Unknown initialization type")
         
-        # Xavier initialization
-        self.weight = xavier_init(self.in_channels, self.out_channels)
-        self.bias = torch.zeros(self.out_channels)
+        self.bias = torch.zeros(1, out_channels)
         
         # store last input for backpropagation
         self.last_input = None
@@ -53,8 +57,8 @@ class Linear:
             x = x.view(x.size(0), -1)
 
         # calculate linear transformation
-        newx = torch.matmul(x, self.weight) + self.bias
-        return newx
+        x = torch.matmul(x, self.weight) + self.bias
+        return x
     
     def backward(self, gradient):
         # calculate gradients
@@ -66,15 +70,14 @@ class Linear:
             gradient = gradient.view(*self.last_input.shape)
 
         # calculate gradient for previous layer
-        newgrad = torch.matmul(gradient, self.weight.t())
+        # return gradient to next layer
+        gradient = torch.matmul(gradient, self.weight.t())
+        return gradient
 
-        return newgrad
-
-    
     def update(self, learning_rate):
-        # update weights and bias
-        self.weight -= learning_rate * self.grad_weight
-        self.bias -= learning_rate * self.grad_bias
+        # gradient descent (update weights + biases)
+        self.weight = self.weight - learning_rate * self.grad_weight
+        self.bias = self.bias - learning_rate * self.grad_bias
         
 class ReLU:
     def __init__(self):
@@ -90,8 +93,8 @@ class ReLU:
     
     def backward(self, gradient):
         # ReLU gradient
-        newgrad = torch.where(self.last_input>0, gradient, 0.0)
-        return newgrad
+        gradient = torch.where(self.last_input > 0, gradient, 0.0)
+        return gradient
     
     def update(self, learning_rate):
         #we don't have any parameters here
