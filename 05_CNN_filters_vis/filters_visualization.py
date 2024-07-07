@@ -25,7 +25,7 @@ def total_variation_loss(img, weight):
     # Weight controls strength of TV loss
     return weight * (horizontal_diff + vertical_diff)
 
-def visualise_layer_filter(model, layer_nmbr, filter_nmbr, num_optim_steps=26, lr=0.1, optimizer_type='adam', rand_img=None, total_var_loss=False):
+def visualise_layer_filter(model, layer_nmbr, filter_nmbr, num_optim_steps=26, lr=0.1, optimizer_type='adam', rand_img=None, total_var_loss=False, tv_weight=50.):
 
     # Generate a random image
     if rand_img is None:
@@ -57,7 +57,7 @@ def visualise_layer_filter(model, layer_nmbr, filter_nmbr, num_optim_steps=26, l
 
         if total_var_loss:
             # Add total variation loss later
-            loss_tv = total_variation_loss(processed_image, 500.)
+            loss_tv = total_variation_loss(processed_image, tv_weight)
             loss = -torch.mean(conv_output) + (loss_tv * 1.)
         
         else:
