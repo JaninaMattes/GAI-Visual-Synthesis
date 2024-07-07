@@ -17,8 +17,13 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # Total Variation Loss
 def total_variation_loss(img, weight):
+
     # Calculate total variation loss
-    return weight * (torch.sum(torch.abs(img[:, :, :, :-1] - img[:, :, :, 1:])) + torch.sum(torch.abs(img[:, :, :-1, :] - img[:, :, 1:, :])))
+    horizontal_diff = torch.sum(torch.abs(img[:, :, :, :-1] - img[:, :, :, 1:]))
+    vertical_diff = torch.sum(torch.abs(img[:, :, :-1, :] - img[:, :, 1:, :]))
+
+    # Weight controls strength of TV loss
+    return weight * (horizontal_diff + vertical_diff)
 
 def visualise_layer_filter(model, layer_nmbr, filter_nmbr, num_optim_steps=26, lr=0.1, optimizer_type='adam', rand_img=None, total_var_loss=False):
 
@@ -53,7 +58,7 @@ def visualise_layer_filter(model, layer_nmbr, filter_nmbr, num_optim_steps=26, l
         if total_var_loss:
             # Add total variation loss later
             loss_tv = total_variation_loss(processed_image, 500.)
-            loss = -torch.mean(conv_output) + (loss_tv*1.)
+            loss = -torch.mean(conv_output) + (loss_tv * 1.)
         
         else:
             # Mean of the output of the selected layer/filter
@@ -66,6 +71,7 @@ def visualise_layer_filter(model, layer_nmbr, filter_nmbr, num_optim_steps=26, l
         loss.backward()
         # Apply gradients
         optimizer.step()
+        
         # Recreate image
         optimized_image = recreate_image(processed_image.cpu())
 
